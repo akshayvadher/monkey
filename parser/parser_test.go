@@ -12,18 +12,7 @@ let x = 5;
 let y = 10;
 let foobar = 838383;
 `
-	l := lexer.New(input)
-	p := New(l)
-
-	program := p.ParseProgram()
-	checkParsedErrors(t, p)
-
-	if program == nil {
-		t.Fatalf("ParsedProgram() returned Nil")
-	}
-	if len(program.Statements) != 3 {
-		t.Fatalf("Program does not contain 3 statements. Got %d", len(program.Statements))
-	}
+	program := parseAndTestCommonStep(t, input, 3)
 
 	tests := []struct {
 		expectedIdentifier string
@@ -47,18 +36,7 @@ return 5;
 return 10;
 return 993322;
 `
-	l := lexer.New(input)
-	p := New(l)
-
-	program := p.ParseProgram()
-	checkParsedErrors(t, p)
-
-	if program == nil {
-		t.Fatalf("ParsedProgram() returned Nil")
-	}
-	if len(program.Statements) != 3 {
-		t.Fatalf("Program does not contain 3 statements. Got %d", len(program.Statements))
-	}
+	program := parseAndTestCommonStep(t, input, 3)
 
 	for _, stmt := range program.Statements {
 		returnStmt, ok := stmt.(*ast.ReturnStatement)
@@ -70,6 +48,66 @@ return 993322;
 			t.Errorf("returnStmt.TokenLiteral() is not 'return'. Got %q", returnStmt.TokenLiteral())
 		}
 	}
+}
+
+func TestIdentifierExpression(t *testing.T) {
+	input := "foobar;"
+
+	program := parseAndTestCommonStep(t, input, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statement[0] is not an expression statement, got %T", program.Statements[0])
+	}
+	ident, ok := stmt.Expression.(*ast.Identifier)
+	if !ok {
+		t.Fatalf("exp is not ast.Identifier, got %T", ident)
+	}
+	if ident.Value != "foobar" {
+		t.Errorf("ident value is not %s. got %s", "foobar", ident.Value)
+	}
+	if ident.TokenLiteral() != "foobar" {
+		t.Errorf("token literal is not %s, got %s", "foobar", ident.TokenLiteral())
+	}
+}
+
+func TestIntegerLiteralExpression(t *testing.T) {
+	input := "5;"
+
+	program := parseAndTestCommonStep(t, input, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("the statement is not an expression. Got %T", program.Statements[0])
+	}
+
+	literal, ok := stmt.Expression.(*ast.IntegerLiteral)
+	if !ok {
+		t.Fatalf("expression is not integer literal. Got %T", stmt.Expression)
+	}
+	if literal.Value != 5 {
+		t.Errorf("Integer literal's value is not 5. Got %d", literal.Value)
+	}
+	if literal.TokenLiteral() != "5" {
+		t.Errorf("token literal is not %s. Got %s", "5", literal.TokenLiteral())
+	}
+
+}
+
+func parseAndTestCommonStep(t *testing.T, input string, expectedStatements int) *ast.Program {
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	checkParsedErrors(t, p)
+
+	if program == nil {
+		t.Fatalf("ParsedProgram() returned Nil")
+	}
+	if len(program.Statements) != expectedStatements {
+		t.Fatalf("Program does not contain %d statement. Got %d", expectedStatements, len(program.Statements))
+	}
+	return program
 }
 
 func checkParsedErrors(t *testing.T, p *Parser) {
