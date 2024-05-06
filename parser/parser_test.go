@@ -56,10 +56,7 @@ func TestIdentifierExpression(t *testing.T) {
 
 	program := parseAndTestCommonStep(t, input, 1)
 
-	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
-	if !ok {
-		t.Fatalf("program.Statement[0] is not an expression statement, got %T", program.Statements[0])
-	}
+	stmt := testAndParseToExpressionStatement(t, program)
 	ident, ok := stmt.Expression.(*ast.Identifier)
 	if !ok {
 		t.Fatalf("exp is not ast.Identifier, got %T", ident)
@@ -72,15 +69,20 @@ func TestIdentifierExpression(t *testing.T) {
 	}
 }
 
+func testAndParseToExpressionStatement(t *testing.T, program *ast.Program) *ast.ExpressionStatement {
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statement[0] is not an expression statement, got %T", program.Statements[0])
+	}
+	return stmt
+}
+
 func TestIntegerLiteralExpression(t *testing.T) {
 	input := "5;"
 
 	program := parseAndTestCommonStep(t, input, 1)
 
-	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
-	if !ok {
-		t.Fatalf("the statement is not an expression. Got %T", program.Statements[0])
-	}
+	stmt := testAndParseToExpressionStatement(t, program)
 
 	literal, ok := stmt.Expression.(*ast.IntegerLiteral)
 	if !ok {
@@ -106,10 +108,7 @@ func TestParsingPrefixExpression(t *testing.T) {
 	for _, tt := range prefixTests {
 		t.Run(fmt.Sprintf("Parsing prefix expression for input %s, operator %s", tt.input, tt.operator), func(t *testing.T) {
 			program := parseAndTestCommonStep(t, tt.input, 1)
-			stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
-			if !ok {
-				t.Fatalf("the statement is not an expression. Got %T", program.Statements[0])
-			}
+			stmt := testAndParseToExpressionStatement(t, program)
 			exp, ok := stmt.Expression.(*ast.PrefixExpression)
 			if !ok {
 				t.Fatalf("expression is not prefix expression. Got %T", stmt.Expression)
@@ -124,10 +123,79 @@ func TestParsingPrefixExpression(t *testing.T) {
 	}
 }
 
-func testIntegerLiteral(t *testing.T, right ast.Expression, value int64) bool {
-	integ, ok := right.(*ast.IntegerLiteral)
+func TestParsingInfixExpression(t *testing.T) {
+	infixTests := []struct {
+		input    string
+		left     int64
+		operator string
+		right    int64
+	}{
+		{"5 + 5", 5, "+", 5},
+		{"5 - 5", 5, "-", 5},
+		{"5 * 5", 5, "*", 5},
+		{"5 / 5", 5, "/", 5},
+		{"5 > 5", 5, ">", 5},
+		{"5 < 5", 5, "<", 5},
+		{"5 == 5", 5, "==", 5},
+		{"5 != 5", 5, "!=", 5},
+	}
+
+	for _, tt := range infixTests {
+		t.Run(fmt.Sprintf("Infix parsing for %s", tt.input), func(t *testing.T) {
+			program := parseAndTestCommonStep(t, tt.input, 1)
+			stmt := testAndParseToExpressionStatement(t, program)
+			exp, ok := stmt.Expression.(*ast.InfixExpression)
+			if !ok {
+				t.Fatalf("exp is not an infix expression. Got %T", stmt.Expression)
+			}
+			if !testIntegerLiteral(t, exp.Left, tt.left) {
+				return
+			}
+			if exp.Operator != tt.operator {
+				t.Fatalf("expression operator is not %s. Got %s", tt.operator, exp.Operator)
+			}
+			if !testIntegerLiteral(t, exp.Right, tt.right) {
+				return
+			}
+		})
+	}
+}
+
+func TestOperatorPrecedenceParsing(t *testing.T) {
+	tests := []struct {
+		input              string
+		expected           string
+		expectedStatements int
+	}{
+		{"-a * b", "((-a) * b)", 1},
+		{"!-a", "(!(-a))", 1},
+		{"a + b + c", "((a + b) + c)", 1},
+		{"a + b - c", "((a + b) - c)", 1},
+		{"a * b * c", "((a * b) * c)", 1},
+		{"a * b / c", "((a * b) / c)", 1},
+		{"a + b / c", "(a + (b / c))", 1},
+		{"a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)", 1},
+		{"3 + 4; -f * 5", "(3 + 4)((-f) * 5)", 2},
+		{"5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))", 1},
+		{"5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))", 1},
+		{"3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))", 1},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("Operator precedence for %q", tt.input), func(t *testing.T) {
+			program := parseAndTestCommonStep(t, tt.input, tt.expectedStatements)
+
+			actual := program.String()
+			if actual != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, actual)
+			}
+		})
+	}
+}
+
+func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bool {
+	integ, ok := expression.(*ast.IntegerLiteral)
 	if !ok {
-		t.Errorf("righ expression is not an integer literal. Got %T", right)
+		t.Errorf("righ expression is not an integer literal. Got %T", expression)
 		return false
 	}
 	if integ.Value != value {
