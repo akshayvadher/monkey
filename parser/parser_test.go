@@ -253,6 +253,11 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 		{"false", "false", 1},
 		{"3 > 5 == false", "((3 > 5) == false)", 1},
 		{"3 < 5 == true", "((3 < 5) == true)", 1},
+		{"1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)", 1},
+		{"(5 + 5) * 2", "((5 + 5) * 2)", 1},
+		{"2 / (5 + 5)", "(2 / (5 + 5))", 1},
+		{"-(5 + 5)", "(-(5 + 5))", 1},
+		{"!(true == true)", "(!(true == true))", 1},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("Operator precedence for %q", tt.input), func(t *testing.T) {
