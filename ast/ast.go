@@ -52,6 +52,10 @@ type InfixExpression struct {
 	Operator string
 	Right    Expression
 }
+type Boolean struct {
+	Token token.Token
+	Value bool
+}
 
 func (ls *LetStatement) statementNode() {
 
@@ -147,6 +151,14 @@ func (ie *InfixExpression) String() string {
 }
 func (ie *InfixExpression) expressionNode() {
 
+}
+func (b *Boolean) TokenLiteral() string {
+	return b.Token.Literal
+}
+func (b *Boolean) String() string {
+	return b.Token.Literal
+}
+func (b *Boolean) expressionNode() {
 }
 
 func (p *Program) TokenLiteral() string {

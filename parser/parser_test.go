@@ -83,9 +83,28 @@ func testLiteralExpression(t *testing.T, exp ast.Expression, expected interface{
 		return testIntegerLiteral(t, exp, v)
 	case string:
 		return testIdentifier(t, exp, v)
+	case bool:
+		return testBooleanLiteral(t, exp, v)
 	}
 	t.Errorf("type of exp not handled. Got %T", exp)
 	return false
+}
+
+func testBooleanLiteral(t *testing.T, exp ast.Expression, b bool) bool {
+	boolExp, ok := exp.(*ast.Boolean)
+	if !ok {
+		t.Errorf("righ expression is not an integer literal. Got %T", exp)
+		return false
+	}
+	if boolExp.Value != b {
+		t.Errorf("boolExp.Value is not %t. Got %t", b, boolExp.Value)
+		return false
+	}
+	if boolExp.TokenLiteral() != fmt.Sprintf("%t", b) {
+		t.Errorf("boolExp.TokenLiteral is not %t. got=%s", b, boolExp.TokenLiteral())
+		return false
+	}
+	return true
 }
 
 func testAndParseToExpressionStatement(t *testing.T, program *ast.Program) *ast.ExpressionStatement {
@@ -115,14 +134,35 @@ func TestIntegerLiteralExpression(t *testing.T) {
 	}
 }
 
+func TestBooleanExpression(t *testing.T) {
+	tests := []struct {
+		input           string
+		expectedBoolean bool
+	}{
+		{"true", true},
+		{"true;", true},
+		{"false", false},
+		{"false;", false},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("Boolean parsing for %s", tt.input), func(t *testing.T) {
+			program := parseAndTestCommonStep(t, tt.input, 1)
+			stmt := testAndParseToExpressionStatement(t, program)
+			testLiteralExpression(t, stmt.Expression, tt.expectedBoolean)
+		})
+	}
+}
+
 func TestParsingPrefixExpression(t *testing.T) {
 	prefixTests := []struct {
-		input        string
-		operator     string
-		integerValue int64
+		input    string
+		operator string
+		value    interface{}
 	}{
 		{"!5;", "!", 5},
 		{"-15;", "-", 15},
+		{"!true;", "!", true},
+		{"!false;", "!", false},
 	}
 	for _, tt := range prefixTests {
 		t.Run(fmt.Sprintf("Parsing prefix expression for input %s, operator %s", tt.input, tt.operator), func(t *testing.T) {
@@ -135,7 +175,7 @@ func TestParsingPrefixExpression(t *testing.T) {
 			if exp.Operator != tt.operator {
 				t.Fatalf("expression operator is not %s. Got %s", tt.operator, exp.Operator)
 			}
-			if !testIntegerLiteral(t, exp.Right, tt.integerValue) {
+			if !testLiteralExpression(t, exp.Right, tt.value) {
 				return
 			}
 		})
@@ -145,9 +185,9 @@ func TestParsingPrefixExpression(t *testing.T) {
 func TestParsingInfixExpression(t *testing.T) {
 	infixTests := []struct {
 		input    string
-		left     int64
+		left     interface{}
 		operator string
-		right    int64
+		right    interface{}
 	}{
 		{"5 + 5", 5, "+", 5},
 		{"5 - 5", 5, "-", 5},
@@ -157,6 +197,9 @@ func TestParsingInfixExpression(t *testing.T) {
 		{"5 < 5", 5, "<", 5},
 		{"5 == 5", 5, "==", 5},
 		{"5 != 5", 5, "!=", 5},
+		{"true == true", true, "==", true},
+		{"true != false", true, "!=", false},
+		{"false == false", false, "==", false},
 	}
 
 	for _, tt := range infixTests {
@@ -164,7 +207,9 @@ func TestParsingInfixExpression(t *testing.T) {
 			program := parseAndTestCommonStep(t, tt.input, 1)
 			stmt := testAndParseToExpressionStatement(t, program)
 			stmtExp := stmt.Expression
-			testInfixExpression(t, stmtExp, tt.left, tt.operator, tt.right)
+			if !testInfixExpression(t, stmtExp, tt.left, tt.operator, tt.right) {
+				return
+			}
 		})
 	}
 }
@@ -204,6 +249,10 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 		{"5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))", 1},
 		{"5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))", 1},
 		{"3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))", 1},
+		{"true", "true", 1},
+		{"false", "false", 1},
+		{"3 > 5 == false", "((3 > 5) == false)", 1},
+		{"3 < 5 == true", "((3 < 5) == true)", 1},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("Operator precedence for %q", tt.input), func(t *testing.T) {
