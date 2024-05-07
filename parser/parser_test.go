@@ -271,6 +271,66 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 	}
 }
 
+func TestIfExpression(t *testing.T) {
+	input := `if (x < y) { x }`
+
+	program := parseAndTestCommonStep(t, input, 1)
+	expStmt := testAndParseToExpressionStatement(t, program)
+	ifExp, ok := expStmt.Expression.(*ast.IfExpression)
+	if !ok {
+		t.Fatalf("statement expression is not an if expression. Got %T", expStmt.Expression)
+	}
+	if !testInfixExpression(t, ifExp.Condition, "x", "<", "y") {
+		return
+	}
+	if len(ifExp.Consequence.Statements) != 1 {
+		t.Errorf("Consequence is not 1 statement. Got %d", len(ifExp.Consequence.Statements))
+	}
+	consequence, ok := ifExp.Consequence.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Consequence[0] statement is not an expression. Got %T", ifExp.Consequence.Statements[0])
+	}
+	if !testIdentifier(t, consequence.Expression, "x") {
+		return
+	}
+	if ifExp.Alternative != nil {
+		t.Errorf("if expression alternative was not nil. Got %+v", ifExp.Alternative)
+	}
+}
+func TestIfElseExpression(t *testing.T) {
+	input := `if (x < y) { x } else { y }`
+
+	program := parseAndTestCommonStep(t, input, 1)
+	expStmt := testAndParseToExpressionStatement(t, program)
+	ifExp, ok := expStmt.Expression.(*ast.IfExpression)
+	if !ok {
+		t.Fatalf("statement expression is not an if expression. Got %T", expStmt.Expression)
+	}
+	if !testInfixExpression(t, ifExp.Condition, "x", "<", "y") {
+		return
+	}
+	if len(ifExp.Consequence.Statements) != 1 {
+		t.Errorf("Consequence is not 1 statement. Got %d", len(ifExp.Consequence.Statements))
+	}
+	consequence, ok := ifExp.Consequence.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Consequence[0] statement is not an expression. Got %T", ifExp.Consequence.Statements[0])
+	}
+	if !testIdentifier(t, consequence.Expression, "x") {
+		return
+	}
+	if len(ifExp.Alternative.Statements) != 1 {
+		t.Errorf("Alternative is not 1 statement. Got %d", len(ifExp.Alternative.Statements))
+	}
+	altConsequence, ok := ifExp.Alternative.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Alternative[0] statement is not an expression. Got %T", ifExp.Alternative.Statements[0])
+	}
+	if !testIdentifier(t, altConsequence.Expression, "y") {
+		return
+	}
+}
+
 func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bool {
 	integ, ok := expression.(*ast.IntegerLiteral)
 	if !ok {
