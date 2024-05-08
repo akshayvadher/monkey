@@ -5,10 +5,22 @@ import (
 	"fmt"
 	"io"
 	"monkey/lexer"
-	"monkey/token"
+	"monkey/parser"
 )
 
 const PROMPT = ">> "
+const MONKEY_FACE = `            __,__
+   .--.  .-"     "-.  .--.
+  / .. \/  .-. .-.  \/ .. \
+ | |  '|  /   Y   \  |'  | |
+ | \   \  \ 0 | 0 /  /   / |
+  \ '- ,\.-"""""""-./, -' /
+   ''-' /_   ^ ^   _\ '-''
+       |  \._   _./  |
+       \   \ '~' /   /
+        '._ '-=-' _.'
+           '-----'
+`
 
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
@@ -25,9 +37,24 @@ func Start(in io.Reader, out io.Writer) {
 
 		line := scanner.Text()
 		l := lexer.New(line)
+		p := parser.New(l)
 
-		for tok := l.NextToken(); tok.Type != token.EOF; tok = l.NextToken() {
-			_, _ = fmt.Fprintf(out, "%+v\n", tok)
+		program := p.ParseProgram()
+		if len(p.Errors()) != 0 {
+			printParseError(out, p.Errors())
+			continue
 		}
+
+		_, _ = io.WriteString(out, program.String())
+		_, _ = io.WriteString(out, "\n")
+	}
+}
+
+func printParseError(out io.Writer, errors []string) {
+	_, _ = io.WriteString(out, MONKEY_FACE)
+	_, _ = io.WriteString(out, "Woops! We ran into some monkey business here!\n")
+	_, _ = io.WriteString(out, " parser errors:\n")
+	for _, e := range errors {
+		_, _ = io.WriteString(out, "\t"+e+"\n")
 	}
 }
