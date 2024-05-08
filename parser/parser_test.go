@@ -7,48 +7,58 @@ import (
 	"testing"
 )
 
-func TestLetStatements(t *testing.T) {
-	input := `
-let x = 5;
-let y = 10;
-let foobar = 838383;
-`
-	program := parseAndTestCommonStep(t, input, 3)
-
+func TestLetStatement(t *testing.T) {
 	tests := []struct {
+		input              string
 		expectedIdentifier string
+		expectedValue      interface{}
 	}{
-		{"x"},
-		{"y"},
-		{"foobar"},
+		{"let x = 5;", "x", 5},
+		{"let y = true;", "y", true},
+		{"let foobar = y;", "foobar", "y"},
 	}
 
-	for i, tt := range tests {
-		stmt := program.Statements[i]
-		if !testLetStatement(t, stmt, tt.expectedIdentifier) {
-			return
-		}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("Test let statement for %s", tt.input), func(t *testing.T) {
+			program := parseAndTestCommonStep(t, tt.input, 1)
+			stmt := program.Statements[0]
+			if !testLetStatement(t, stmt, tt.expectedIdentifier) {
+				return
+			}
+			val := stmt.(*ast.LetStatement).Value
+			if !testLiteralExpression(t, val, tt.expectedValue) {
+				return
+			}
+		})
 	}
 }
 
 func TestReturnStatements(t *testing.T) {
-	input := `
-return 5;
-return 10;
-return 993322;
-`
-	program := parseAndTestCommonStep(t, input, 3)
-
-	for _, stmt := range program.Statements {
-		returnStmt, ok := stmt.(*ast.ReturnStatement)
-		if !ok {
-			t.Errorf("stmt is not a *ast.ReturnStatement. Got %T", stmt)
-			continue
-		}
-		if returnStmt.TokenLiteral() != "return" {
-			t.Errorf("returnStmt.TokenLiteral() is not 'return'. Got %q", returnStmt.TokenLiteral())
-		}
+	tests := []struct {
+		input         string
+		expectedValue interface{}
+	}{
+		{"return 5;", 5},
+		{"return true;", true},
+		{"return foobar;", "foobar"},
 	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("Test return statement for %s", tt.input), func(t *testing.T) {
+			program := parseAndTestCommonStep(t, tt.input, 1)
+			returnStmt, ok := program.Statements[0].(*ast.ReturnStatement)
+			if !ok {
+				t.Errorf("stmt is not a *ast.ReturnStatement. Got %T", program.Statements[0])
+				return
+			}
+			if returnStmt.TokenLiteral() != "return" {
+				t.Errorf("returnStmt.TokenLiteral() is not 'return'. Got %q", returnStmt.TokenLiteral())
+			}
+			if !testLiteralExpression(t, returnStmt.ReturnValue, tt.expectedValue) {
+				return
+			}
+		})
+	}
+
 }
 
 func TestIdentifierExpression(t *testing.T) {
