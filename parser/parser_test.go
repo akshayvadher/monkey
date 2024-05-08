@@ -56,7 +56,7 @@ func TestIdentifierExpression(t *testing.T) {
 
 	program := parseAndTestCommonStep(t, input, 1)
 
-	stmt := testAndParseToExpressionStatement(t, program)
+	stmt := parseAndTestExpressionStatement(t, program)
 	expression := stmt.Expression
 	testIdentifier(t, expression, "foobar")
 }
@@ -107,7 +107,7 @@ func testBooleanLiteral(t *testing.T, exp ast.Expression, b bool) bool {
 	return true
 }
 
-func testAndParseToExpressionStatement(t *testing.T, program *ast.Program) *ast.ExpressionStatement {
+func parseAndTestExpressionStatement(t *testing.T, program *ast.Program) *ast.ExpressionStatement {
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 	if !ok {
 		t.Fatalf("program.Statement[0] is not an expression statement, got %T", program.Statements[0])
@@ -120,7 +120,7 @@ func TestIntegerLiteralExpression(t *testing.T) {
 
 	program := parseAndTestCommonStep(t, input, 1)
 
-	stmt := testAndParseToExpressionStatement(t, program)
+	stmt := parseAndTestExpressionStatement(t, program)
 
 	literal, ok := stmt.Expression.(*ast.IntegerLiteral)
 	if !ok {
@@ -147,7 +147,7 @@ func TestBooleanExpression(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("Boolean parsing for %s", tt.input), func(t *testing.T) {
 			program := parseAndTestCommonStep(t, tt.input, 1)
-			stmt := testAndParseToExpressionStatement(t, program)
+			stmt := parseAndTestExpressionStatement(t, program)
 			testLiteralExpression(t, stmt.Expression, tt.expectedBoolean)
 		})
 	}
@@ -167,7 +167,7 @@ func TestParsingPrefixExpression(t *testing.T) {
 	for _, tt := range prefixTests {
 		t.Run(fmt.Sprintf("Parsing prefix expression for input %s, operator %s", tt.input, tt.operator), func(t *testing.T) {
 			program := parseAndTestCommonStep(t, tt.input, 1)
-			stmt := testAndParseToExpressionStatement(t, program)
+			stmt := parseAndTestExpressionStatement(t, program)
 			exp, ok := stmt.Expression.(*ast.PrefixExpression)
 			if !ok {
 				t.Fatalf("expression is not prefix expression. Got %T", stmt.Expression)
@@ -205,7 +205,7 @@ func TestParsingInfixExpression(t *testing.T) {
 	for _, tt := range infixTests {
 		t.Run(fmt.Sprintf("Infix parsing for %s", tt.input), func(t *testing.T) {
 			program := parseAndTestCommonStep(t, tt.input, 1)
-			stmt := testAndParseToExpressionStatement(t, program)
+			stmt := parseAndTestExpressionStatement(t, program)
 			stmtExp := stmt.Expression
 			if !testInfixExpression(t, stmtExp, tt.left, tt.operator, tt.right) {
 				return
@@ -275,7 +275,7 @@ func TestIfExpression(t *testing.T) {
 	input := `if (x < y) { x }`
 
 	program := parseAndTestCommonStep(t, input, 1)
-	expStmt := testAndParseToExpressionStatement(t, program)
+	expStmt := parseAndTestExpressionStatement(t, program)
 	ifExp, ok := expStmt.Expression.(*ast.IfExpression)
 	if !ok {
 		t.Fatalf("statement expression is not an if expression. Got %T", expStmt.Expression)
@@ -301,7 +301,7 @@ func TestIfElseExpression(t *testing.T) {
 	input := `if (x < y) { x } else { y }`
 
 	program := parseAndTestCommonStep(t, input, 1)
-	expStmt := testAndParseToExpressionStatement(t, program)
+	expStmt := parseAndTestExpressionStatement(t, program)
 	ifExp, ok := expStmt.Expression.(*ast.IfExpression)
 	if !ok {
 		t.Fatalf("statement expression is not an if expression. Got %T", expStmt.Expression)
@@ -328,6 +328,54 @@ func TestIfElseExpression(t *testing.T) {
 	}
 	if !testIdentifier(t, altConsequence.Expression, "y") {
 		return
+	}
+}
+
+func TestFunctionLiteralParsing(t *testing.T) {
+	input := `fn(x, y) { x + y; }`
+	program := parseAndTestCommonStep(t, input, 1)
+	stmt := parseAndTestExpressionStatement(t, program)
+
+	function, ok := stmt.Expression.(*ast.FunctionLiteral)
+	if !ok {
+		t.Fatalf("statement expression is not a functiona literal. Got %T", stmt.Expression)
+	}
+	if len(function.Parameters) != 2 {
+		t.Fatalf("function literal is not 2. Got %d", len(function.Parameters))
+	}
+	testLiteralExpression(t, function.Parameters[0], "x")
+	testLiteralExpression(t, function.Parameters[1], "y")
+	if len(function.Body.Statements) != 1 {
+		t.Fatalf("Function body does not have 1 statement. Got %d", len(function.Body.Statements))
+	}
+	bodyStmt, ok := function.Body.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("function body is not an expression statement. Got %T", function.Body.Statements[0])
+	}
+	testInfixExpression(t, bodyStmt.Expression, "x", "+", "y")
+}
+
+func TestFunctionParameterParsing(t *testing.T) {
+	tests := []struct {
+		input          string
+		expectedParams []string
+	}{
+		{"fn() {};", []string{}},
+		{"fn(x) {};", []string{"x"}},
+		{"fn(x, y, z) {};", []string{"x", "y", "z"}},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("Test function parameter parsing for %s", tt.input), func(t *testing.T) {
+			program := parseAndTestCommonStep(t, tt.input, 1)
+			function := program.Statements[0].(*ast.ExpressionStatement).Expression.(*ast.FunctionLiteral)
+
+			if len(function.Parameters) != len(tt.expectedParams) {
+				t.Errorf("parameters lenth wrong. Want %d. Got %d", len(tt.expectedParams), len(function.Parameters))
+			}
+			for i, ident := range tt.expectedParams {
+				testLiteralExpression(t, function.Parameters[i], ident)
+			}
+		})
 	}
 }
 
