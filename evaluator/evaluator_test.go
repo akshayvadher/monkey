@@ -97,6 +97,31 @@ func TestIfElseExpressions(t *testing.T) {
 	}
 }
 
+func TestReturnValue(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{"return 10;", 10},
+		{"return 10; 9;", 10},
+		{"return 2 * 5; 9;", 10},
+		{"9; return 2 * 5; 9;", 10},
+		{`if (10 > 1) {
+					if (10 > 1) {
+						return 10;	
+					}
+					return 1;
+				}
+`, 10},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%s", tt.input), func(t *testing.T) {
+			evaluated := testEval(tt.input)
+			testIntegerObject(t, evaluated, tt.expected)
+		})
+	}
+}
+
 func testNullObjects(t *testing.T, e object.Object) bool {
 	if e != NULL {
 		t.Errorf("object is not NULL. Got %T (%+v)", e, e)
