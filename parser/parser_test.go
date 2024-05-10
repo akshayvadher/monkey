@@ -411,6 +411,19 @@ func TestCallExpressionParsing(t *testing.T) {
 	testInfixExpression(t, exp.Arguments[2], 4, "+", 5)
 }
 
+func TestStringLiteralExpression(t *testing.T) {
+	input := `"hello world"`
+	program := parseAndTestCommonStep(t, input, 1)
+	stmt := parseAndTestExpressionStatement(t, program)
+	s, ok := stmt.Expression.(*ast.StringLiteral)
+	if !ok {
+		t.Fatalf("statement expression is not a string literal. Got %T", stmt.Expression)
+	}
+	if s.Value != "hello world" {
+		t.Errorf("string literal value is not %q. Got %q", "hello world", s.Value)
+	}
+}
+
 func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bool {
 	integ, ok := expression.(*ast.IntegerLiteral)
 	if !ok {

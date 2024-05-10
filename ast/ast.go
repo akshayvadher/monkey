@@ -77,6 +77,10 @@ type CallExpression struct {
 	Function  Expression  // identifier or FunctionLiteral
 	Arguments []Expression
 }
+type StringLiteral struct {
+	Token token.Token // "
+	Value string
+}
 
 func (ls *LetStatement) statementNode() {
 
@@ -255,6 +259,16 @@ func (ce *CallExpression) String() string {
 	return out.String()
 }
 func (ce *CallExpression) expressionNode() {
+
+}
+
+func (s *StringLiteral) TokenLiteral() string {
+	return s.Token.Literal
+}
+func (s *StringLiteral) String() string {
+	return s.Token.Literal
+}
+func (s *StringLiteral) expressionNode() {
 
 }
 

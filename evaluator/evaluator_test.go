@@ -135,6 +135,7 @@ func TestErrorHandling(t *testing.T) {
 		{"if (10 > 1) { true + false; }", "unknown operator: BOOLEAN + BOOLEAN"},
 		{"if (10 > 1) { if (10 > 1) { return true + false; } return 1 } ", "unknown operator: BOOLEAN + BOOLEAN"},
 		{"foobar", "identifier not found: foobar"},
+		{`"a" - "c"`, "unknown operator: STRING - STRING"},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s", tt.input), func(t *testing.T) {
@@ -258,6 +259,28 @@ apply(2, apply(3, 4, sub), add);
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s", tt.input), func(t *testing.T) {
 			testIntegerObject(t, testEval(tt.input), tt.expected)
+		})
+	}
+}
+
+func TestStringLiteral(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`"Yo !"`, "Yo !"},
+		{`"Yo" + " " +  "Ho"`, "Yo Ho"},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%s", tt.input), func(t *testing.T) {
+			eval := testEval(tt.input)
+			s, ok := eval.(*object.String)
+			if !ok {
+				t.Fatalf("Object is not a string. Got %T (%+v)", eval, eval)
+			}
+			if s.Value != tt.expected {
+				t.Errorf("String has wrong value. Got %q", s.Value)
+			}
 		})
 	}
 }
