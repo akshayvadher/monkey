@@ -271,6 +271,8 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 		{"a + add(b * c) + d", "((a + add((b * c)) ) + d)", 1},
 		{"add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))", "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)) ) ", 1},
 		{"add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g)) ", 1},
+		{"a * [1, 2, 3, 4][b * c] * d", "((a * ([1, 2, 3, 4][(b * c)])) * d)", 1},
+		{"add(a * b[2], b[1], 2 * [1, 2][1])", "add((a * (b[2])), (b[1]), (2 * ([1, 2][1]))) ", 1},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("Operator precedence for %q", tt.input), func(t *testing.T) {
@@ -421,6 +423,37 @@ func TestStringLiteralExpression(t *testing.T) {
 	}
 	if s.Value != "hello world" {
 		t.Errorf("string literal value is not %q. Got %q", "hello world", s.Value)
+	}
+}
+func TestArrayLiteral(t *testing.T) {
+	input := `[1, 2 * 3, 4 + 5]`
+	program := parseAndTestCommonStep(t, input, 1)
+	stmt := parseAndTestExpressionStatement(t, program)
+	a, ok := stmt.Expression.(*ast.ArrayLiteral)
+	if !ok {
+		t.Fatalf("statement expression is not a array literal. Got %T", stmt.Expression)
+	}
+	if len(a.Elements) != 3 {
+		t.Fatalf("array length not 3. Got %d", len(a.Elements))
+	}
+	testIntegerLiteral(t, a.Elements[0], 1)
+	testInfixExpression(t, a.Elements[1], 2, "*", 3)
+	testInfixExpression(t, a.Elements[2], 4, "+", 5)
+}
+
+func TestParsingIndexExpression(t *testing.T) {
+	input := "myArray[1 + 2]"
+	program := parseAndTestCommonStep(t, input, 1)
+	stmt := parseAndTestExpressionStatement(t, program)
+	ie, ok := stmt.Expression.(*ast.IndexExpression)
+	if !ok {
+		t.Fatalf("statement expression is not an index expression. Got %T", stmt.Expression)
+	}
+	if !testIdentifier(t, ie.Left, "myArray") {
+		return
+	}
+	if !testInfixExpression(t, ie.Index, 1, "+", 2) {
+		return
 	}
 }
 

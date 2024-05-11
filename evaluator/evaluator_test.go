@@ -290,11 +290,34 @@ func TestBuiltinFunction(t *testing.T) {
 		input    string
 		expected interface{}
 	}{
+		// String
 		{`len("")`, 0},
 		{`len("four")`, 4},
 		{`len("four two")`, 8},
 		{`len(1)`, "argument to `len` not supported, got INTEGER"},
 		{`len("1", "2")`, "wrong number of arguments. got=2, want=1"},
+		// Array
+		{`len([])`, 0},
+		{`len([33])`, 1},
+		{`first([33])`, 33},
+		{`first([33, 34])`, 33},
+		//{`first([])`, nil},
+		{`first([], [])`, "wrong number of arguments. got=2, want=1"},
+		{`first()`, "wrong number of arguments. got=0, want=1"},
+		{`first("")`, "argument to `first` not supported, got STRING"},
+		{`last([], [])`, "wrong number of arguments. got=2, want=1"},
+		{`last()`, "wrong number of arguments. got=0, want=1"},
+		{`last("")`, "argument to `last` not supported, got STRING"},
+		{`last([33])`, 33},
+		{`last([33, 34])`, 34},
+		//{`last([])`, nil},
+		{`rest([], [])`, "wrong number of arguments. got=2, want=1"},
+		{`rest()`, "wrong number of arguments. got=0, want=1"},
+		{`rest("")`, "argument to `rest` not supported, got STRING"},
+		//{`rest([33])`, 33},
+		//{`rest([33, 34])`, [34]},
+		//{`rest([33, 34, 35])`, [34, 35]},
+		//{`last([])`, nil},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s", tt.input), func(t *testing.T) {
@@ -311,6 +334,50 @@ func TestBuiltinFunction(t *testing.T) {
 				if err.Message != expected {
 					t.Errorf("Wrong error message. Expected %q, got %q", expected, err.Message)
 				}
+			}
+		})
+	}
+}
+
+func TestArrayLiteral(t *testing.T) {
+	input := "[1, 2 * 3, 4 + 5]"
+
+	evaluated := testEval(input)
+	a, ok := evaluated.(*object.Array)
+	if !ok {
+		t.Fatalf("Object is not an array. Got %T (%+v)", evaluated, evaluated)
+	}
+	if len(a.Elements) != 3 {
+		t.Fatalf("array has wrong elements %+v", a.Elements)
+	}
+	testIntegerObject(t, a.Elements[0], 1)
+	testIntegerObject(t, a.Elements[1], 6)
+	testIntegerObject(t, a.Elements[2], 9)
+}
+
+func TestArrayIndexExpression(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"[1, 2, 3][0]", 1},
+		{"[1, 2, 3][1]", 2},
+		{"[1, 2, 3][2]", 3},
+		{"[1, 2, 3][1 + 1]", 3},
+		{"let i = 0; [1, 2, 3][i]", 1},
+		{"let myArray = [1, 2, 3]; myArray[2]", 3},
+		{"let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", 2},
+		{"[1, 2, 3][3]", nil},
+		{"[1, 2, 3][-1]", nil},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%s", tt.input), func(t *testing.T) {
+			eval := testEval(tt.input)
+			integer, ok := tt.expected.(int)
+			if ok {
+				testIntegerObject(t, eval, int64(integer))
+			} else {
+				testNullObjects(t, eval)
 			}
 		})
 	}
