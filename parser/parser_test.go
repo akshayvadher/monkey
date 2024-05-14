@@ -457,6 +457,80 @@ func TestParsingIndexExpression(t *testing.T) {
 	}
 }
 
+func TestParsingHashLiteralsStringKeys(t *testing.T) {
+	input := `{"one": 1, "two": 2, "three": 3}`
+	program := parseAndTestCommonStep(t, input, 1)
+	stmt := parseAndTestExpressionStatement(t, program)
+	hl, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("statement expression is not an hash literal. Got %T", stmt.Expression)
+	}
+	if len(hl.Pairs) != 3 {
+		t.Errorf("hash pairs has wrong length. Got %d", len(hl.Pairs))
+	}
+	expected := map[string]int64{
+		"one":   1,
+		"two":   2,
+		"three": 3,
+	}
+	for key, value := range hl.Pairs {
+		literal, ok := key.(*ast.StringLiteral)
+		if !ok {
+			t.Errorf("Key is not a string. Got %T", key)
+		}
+		expectedValue := expected[literal.Value] // TODO check why `String()` is not working here
+		testIntegerLiteral(t, value, expectedValue)
+	}
+}
+
+func TestParsingHashLiteralsWithExpressions(t *testing.T) {
+	input := `{"one": 0 + 1, "two":  10 - 8, "three": 15 / 5}`
+	program := parseAndTestCommonStep(t, input, 1)
+	stmt := parseAndTestExpressionStatement(t, program)
+	hl, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("statement expression is not an hash literal. Got %T", stmt.Expression)
+	}
+	if len(hl.Pairs) != 3 {
+		t.Errorf("hash pairs has wrong length. Got %d", len(hl.Pairs))
+	}
+	expected := map[string]func(ast.Expression){
+		"one": func(e ast.Expression) {
+			testInfixExpression(t, e, 0, "+", 1)
+		},
+		"two": func(e ast.Expression) {
+			testInfixExpression(t, e, 10, "-", 8)
+		},
+		"three": func(e ast.Expression) {
+			testInfixExpression(t, e, 15, "/", 5)
+		},
+	}
+	for key, value := range hl.Pairs {
+		literal, ok := key.(*ast.StringLiteral)
+		if !ok {
+			t.Errorf("Key is not a string. Got %T", key)
+		}
+		testFunc, ok := expected[literal.Value] // TODO check why `String()` is not working here
+		if !ok {
+			t.Errorf("No test fun for key %q", literal.Value)
+		}
+		testFunc(value)
+	}
+}
+
+func TestParsingEmptyHashLiterals(t *testing.T) {
+	input := `{}`
+	program := parseAndTestCommonStep(t, input, 1)
+	stmt := parseAndTestExpressionStatement(t, program)
+	hl, ok := stmt.Expression.(*ast.HashLiteral)
+	if !ok {
+		t.Fatalf("statement expression is not an hash literal. Got %T", stmt.Expression)
+	}
+	if len(hl.Pairs) != 0 {
+		t.Errorf("hash pairs has wrong length. Got %d", len(hl.Pairs))
+	}
+}
+
 func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bool {
 	integ, ok := expression.(*ast.IntegerLiteral)
 	if !ok {
