@@ -94,6 +94,11 @@ type HashLiteral struct {
 	Token token.Token // '{'
 	Pairs map[Expression]Expression
 }
+type MacroLiteral struct {
+	Token      token.Token // 'macro'
+	Parameters []*Identifier
+	Body       *BlockStatement
+}
 
 func (ls *LetStatement) statementNode() {}
 func (ls *LetStatement) TokenLiteral() string {
@@ -312,6 +317,25 @@ func (hl *HashLiteral) String() string {
 	return out.String()
 }
 func (*HashLiteral) expressionNode() {}
+
+func (ml *MacroLiteral) TokenLiteral() string {
+	return ml.Token.Literal
+}
+func (ml *MacroLiteral) String() string {
+	var out bytes.Buffer
+
+	var params []string
+	for _, p := range ml.Parameters {
+		params = append(params, p.String())
+	}
+	out.WriteString(ml.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") ")
+	out.WriteString(ml.Body.String())
+	return out.String()
+}
+func (*MacroLiteral) expressionNode() {}
 
 func (p *Program) TokenLiteral() string {
 	if len(p.Statements) > 0 {

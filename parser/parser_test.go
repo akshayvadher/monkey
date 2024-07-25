@@ -531,6 +531,30 @@ func TestParsingEmptyHashLiterals(t *testing.T) {
 	}
 }
 
+func TestMacroLiteralParsing(t *testing.T) {
+	input := `macro(x, y){ x + y }`
+	program := parseAndTestCommonStep(t, input, 1)
+	stmt := parseAndTestExpressionStatement(t, program)
+	macro, ok := stmt.Expression.(*ast.MacroLiteral)
+	if !ok {
+		t.Fatalf("stmt.Expression is not ast.MacroLiteral. got %T", stmt.Expression)
+	}
+	if len(macro.Parameters) != 2 {
+		t.Fatalf("macro literal parameters wrong. want 2 got %d", len(macro.Parameters))
+	}
+	testLiteralExpression(t, macro.Parameters[0], "x")
+	testLiteralExpression(t, macro.Parameters[1], "y")
+	if len(macro.Body.Statements) != 1 {
+		t.Fatalf("macro.Body.Statemetn has not 1 statements. Got %d", len(macro.Body.Statements))
+	}
+	bodyStmt, ok := macro.Body.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Macro body is not expression. Got %T", macro.Body.Statements[0])
+	}
+	testInfixExpression(t, bodyStmt.Expression, "x", "+", "y")
+
+}
+
 func testIntegerLiteral(t *testing.T, expression ast.Expression, value int64) bool {
 	integ, ok := expression.(*ast.IntegerLiteral)
 	if !ok {
