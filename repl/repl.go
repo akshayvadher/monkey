@@ -61,8 +61,8 @@ func Start(in io.Reader, out io.Writer) {
 			_, _ = fmt.Fprintf(out, "Woops! Executing bytecode failed:\n %s\n", err)
 			continue
 		}
-		stacktop := machine.StackTop()
-		_, _ = io.WriteString(out, stacktop.Inspect())
+		lastPopped := machine.LastPoppedStack()
+		_, _ = io.WriteString(out, lastPopped.Inspect())
 		_, _ = io.WriteString(out, "\n")
 	}
 }
