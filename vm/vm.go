@@ -70,6 +70,11 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpEqual, code.OpNotEqual, code.OpGreaterThan:
+			err := vm.executeComparison(op)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -124,4 +129,66 @@ func (vm *VM) pop() object.Object {
 	o := vm.stack[vm.sp-1]
 	vm.sp--
 	return o
+}
+
+func (vm *VM) executeComparison(op code.Opcode) error {
+	right := vm.pop()
+	left := vm.pop()
+
+	leftType := left.Type()
+	rightType := right.Type()
+
+	if leftType == object.INTEGER_OBJ && rightType == object.INTEGER_OBJ {
+		return vm.executeIntegerComparisonOperation(op, left, right)
+	} else if leftType == object.BOOLEAN_OBJ && rightType == object.BOOLEAN_OBJ {
+		return vm.executeBinaryComparisonOperation(op, left, right)
+	}
+	return fmt.Errorf("unsupported types for comparision operation %s %s", leftType, rightType)
+}
+
+func (vm *VM) executeIntegerComparisonOperation(op code.Opcode, left object.Object, right object.Object) error {
+	leftValue := left.(*object.Integer).Value
+	rightValue := right.(*object.Integer).Value
+	var result bool
+	switch op {
+	case code.OpGreaterThan:
+		result = leftValue > rightValue
+	case code.OpEqual:
+		result = leftValue == rightValue
+	case code.OpNotEqual:
+		result = leftValue != rightValue
+	default:
+		return fmt.Errorf("unknown integer operation %d", op)
+	}
+	err := vm.push(nativeBoolToBooleanObject(result))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (vm *VM) executeBinaryComparisonOperation(op code.Opcode, left object.Object, right object.Object) error {
+	leftValue := left.(*object.Boolean).Value
+	rightValue := right.(*object.Boolean).Value
+	var result bool
+	switch op {
+	case code.OpEqual:
+		result = leftValue == rightValue
+	case code.OpNotEqual:
+		result = leftValue != rightValue
+	default:
+		return fmt.Errorf("unknown boolean operation %d", op)
+	}
+	err := vm.push(nativeBoolToBooleanObject(result))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func nativeBoolToBooleanObject(input bool) *object.Boolean {
+	if input {
+		return True
+	}
+	return False
 }
