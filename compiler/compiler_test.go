@@ -269,6 +269,30 @@ func TestGlobalLetStatements(t *testing.T) {
 	runCompilerTests(t, tests)
 }
 
+func TestStringExpression(t *testing.T) {
+	tests := []compilerTestCase{
+		{
+			input:             `"monkey"`,
+			expectedConstants: []any{"monkey"},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpPop),
+			},
+		},
+		{
+			input:             `"mon" + "key"`,
+			expectedConstants: []any{"mon", "key"},
+			expectedInstructions: []code.Instructions{
+				code.Make(code.OpConstant, 0),
+				code.Make(code.OpConstant, 1),
+				code.Make(code.OpAdd),
+				code.Make(code.OpPop),
+			},
+		},
+	}
+	runCompilerTests(t, tests)
+}
+
 func parse(input string) *ast.Program {
 	l := lexer.New(input)
 	p := parser.New(l)
@@ -328,7 +352,23 @@ func testConstants(expected []any, actual []object.Object) error {
 			if err != nil {
 				return fmt.Errorf("constant %d - testIntegerObject failed: %s", i, err)
 			}
+		case string:
+			err := testStringObject(constant, actual[i])
+			if err != nil {
+				return fmt.Errorf("constant %d - testStringObject failed: %s", i, err)
+			}
 		}
+	}
+	return nil
+}
+
+func testStringObject(expected string, actual object.Object) error {
+	result, ok := actual.(*object.String)
+	if !ok {
+		return fmt.Errorf("object is not a string. Got=%T (%+v)", actual, actual)
+	}
+	if result.Value != expected {
+		return fmt.Errorf("object has wrong value. got=%q, want=%q", result.Value, expected)
 	}
 	return nil
 }
