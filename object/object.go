@@ -209,6 +209,7 @@ type Hashable interface {
 
 type CompiledFunction struct {
 	Instructions code.Instructions
+	NumLocals    int
 }
 
 func (c *CompiledFunction) Type() ObjectType {
