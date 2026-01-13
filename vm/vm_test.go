@@ -355,6 +355,37 @@ func TestCallingFunctionsWithWrongArguments(t *testing.T) {
 	}
 }
 
+func TestBuiltinFunctions(t *testing.T) {
+	tests := []vmTestCase{
+		// len
+		{`len("")`, 0},
+		{`len("four")`, 4},
+		{`len("happy birthday")`, 14},
+		{`len(1)`, &object.Error{Message: "argument to `len` not supported, got INTEGER"}},
+		{`len("one", "two")`, &object.Error{Message: "wrong number of arguments. got=2, want=1"}},
+		{`len([])`, 0},
+		{`len([1, 2, 3])`, 3},
+		// puts
+		{`puts("hello", "world!")`, Null},
+		// first
+		{`first([1, 2, 3])`, 1},
+		{`first([])`, Null},
+		{`first(1)`, &object.Error{Message: "argument to `first` not supported, got INTEGER"}},
+		// last
+		{`last([1, 2, 3])`, 3},
+		{`last([])`, Null},
+		{`last(1)`, &object.Error{Message: "argument to `last` not supported, got INTEGER"}},
+		// rest
+		{`rest([1, 2, 3])`, []int{2, 3}},
+		{`rest([])`, Null},
+		// push
+		{`push([], 1)`, []int{1}},
+		{`push(1, 1)`, &object.Error{Message: "argument to `push` not supported, got INTEGER"}},
+	}
+
+	runVmTests(t, tests)
+}
+
 func runVmTests(t *testing.T, tests []vmTestCase) {
 	t.Helper()
 
@@ -438,6 +469,15 @@ func testExpectedObject(t *testing.T, expected any, actual object.Object) {
 			if err != nil {
 				t.Errorf("testIntegerObject failed: %s", err)
 			}
+		}
+	case *object.Error:
+		errObj, ok := actual.(*object.Error)
+		if !ok {
+			t.Errorf("object is not Error: %T (%+v)", actual, actual)
+			return
+		}
+		if errObj.Message != expected.Message {
+			t.Errorf("wrong error message. expected=%q, got=%q", expected.Message, errObj.Message)
 		}
 	}
 }
