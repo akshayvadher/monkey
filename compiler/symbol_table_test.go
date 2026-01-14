@@ -226,14 +226,14 @@ func TestResolveFree(t *testing.T) {
 				{"f", LocalScope, 1},
 			},
 			[]Symbol{
-				{"c", FreeScope, 0},
-				{"d", FreeScope, 1},
+				{"c", LocalScope, 0},
+				{"d", LocalScope, 1},
 			},
 		},
 	}
 
 	for i, tt := range tests {
-		t.Run(string(rune(i)), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			for _, sym := range tt.expectedSymbols {
 				result, ok := tt.table.Resolve(sym.Name)
 				if !ok {
@@ -246,8 +246,9 @@ func TestResolveFree(t *testing.T) {
 			}
 			if len(tt.table.FreeSymbols) != len(tt.expectedFreeSymbols) {
 				t.Errorf("wrong number of free symbols. got=%d, want=%d", len(tt.table.FreeSymbols), len(tt.expectedFreeSymbols))
+				return
 			}
-			for i, sym := range tt.expectedSymbols {
+			for i, sym := range tt.expectedFreeSymbols {
 				result := tt.table.FreeSymbols[i]
 				if result != sym {
 					t.Errorf("wrong free symbol. got=%+v, want=%+v", result, sym)
@@ -294,5 +295,36 @@ func TestResolveUnresolvableFree(t *testing.T) {
 		if ok {
 			t.Errorf("name %s resolved, but was expected not to", name)
 		}
+	}
+}
+
+func TestDefineAndResolveFunctionName(t *testing.T) {
+	global := NewSymbolTable()
+	global.DefineFunctionName("a")
+
+	expected := Symbol{"a", FunctionScope, 0}
+
+	result, ok := global.Resolve(expected.Name)
+	if !ok {
+		t.Fatalf("function name %s not resolvable", expected.Name)
+	}
+	if result != expected {
+		t.Errorf("expected %s to resolve to %+v, got=%+v", expected.Name, expected, result)
+	}
+}
+
+func TestShadowingFunctionName(t *testing.T) {
+	global := NewSymbolTable()
+	global.DefineFunctionName("a")
+	global.Define("a")
+
+	expected := Symbol{"a", GlobalScope, 0}
+
+	result, ok := global.Resolve(expected.Name)
+	if !ok {
+		t.Fatalf("function name %s not resolvable", expected.Name)
+	}
+	if result != expected {
+		t.Errorf("expected %s to resolve to %+v, got=%+v", expected.Name, expected, result)
 	}
 }
